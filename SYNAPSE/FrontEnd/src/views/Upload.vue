@@ -34,23 +34,6 @@
 
         <div class="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
           <div>
-            <div
-              class="inline-flex items-center gap-2 rounded-full px-3 py-1 mb-4"
-              style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15)"
-            >
-              <span
-                class="w-1.5 h-1.5 rounded-full inline-block"
-                :style="{ background: ACCENT }"
-              ></span>
-
-              <span
-                class="text-xs font-bold tracking-widest uppercase"
-                style="color:#A7E0CD"
-              >
-                Upload de planilha
-              </span>
-            </div>
-
             <h1 class="text-4xl font-extrabold mb-2 text-white tracking-tight">
               Envie seus dados
             </h1>

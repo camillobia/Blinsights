@@ -42,17 +42,64 @@
           </button>
         </div>
 
-        <span
-          class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-          style="background:rgba(62,160,131,0.12);color:#3EA083"
-        >
-          <span
-            class="w-1.5 h-1.5 rounded-full"
-            style="background:#3EA083"
-          ></span>
+        <div class="relative ml-auto">
+          <button
+            @click="userMenuOpen = !userMenuOpen"
+            class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all"
+            :style="{
+              background: userMenuOpen ? '#0F6E56' : '#E2E8F0',
+              color: userMenuOpen ? '#fff' : '#0E1B30'
+            }"
+          >
+            B
+          </button>
 
-          {{ pageTitle }}
-        </span>
+          <!-- Modal do usuário -->
+          <div
+            v-if="userMenuOpen"
+            class="fixed inset-0 z-40"
+            @click="userMenuOpen = false"
+          ></div>
+
+          <div
+            v-if="userMenuOpen"
+            class="absolute right-0 mt-2 w-56 rounded-lg shadow-lg z-50"
+            style="background:#fff;border:1px solid #E2E8F0"
+            @click.stop
+          >
+            <div class="px-4 py-3" style="border-bottom:1px solid #E2E8F0">
+              <p class="text-sm font-semibold" style="color:#0E1B30">
+                Usuário
+              </p>
+              <p class="text-xs mt-1" style="color:#94A3B8">
+                beatriz@synapse.com
+              </p>
+            </div>
+
+            <div class="py-2">
+              <button
+                @click="logout"
+                class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-left transition-all hover:bg-red-50"
+                style="color:#E33838"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  class="w-4 h-4"
+                >
+                  <path
+                    d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                Sair da conta
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -72,6 +119,7 @@ const router = useRouter()
 const route = useRoute()
 
 const menuOpen = ref(false)
+const userMenuOpen = ref(false)
 
 const page = computed(() => {
   if (route.path.includes('/upload')) {
@@ -85,19 +133,12 @@ const page = computed(() => {
   return 'landing'
 })
 
-const pageTitle = computed(() => {
-  if (page.value === 'upload') {
-    return 'Upload de Planilha'
-  }
-
-  if (page.value === 'dashboard') {
-    return 'Dashboard'
-  }
-
-  return 'Sistema'
-})
-
 function goHome() {
+  router.push('/')
+}
+
+function logout() {
+  userMenuOpen.value = false
   router.push('/')
 }
 </script>
