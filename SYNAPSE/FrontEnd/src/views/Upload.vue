@@ -280,6 +280,84 @@
               Máx. 50 MB
             </span>
           </div>
+
+          <!-- Prévia da Planilha -->
+          <div
+            v-if="processed && sheetData.length > 0"
+            class="rounded-3xl overflow-hidden"
+            style="background:#fff;border:1px solid #E2E8F0;box-shadow:0 2px 20px rgba(14,27,48,0.06)"
+          >
+            <div
+              class="px-6 py-4"
+              style="background:linear-gradient(135deg, rgba(15,110,86,0.04), rgba(62,160,131,0.04));border-bottom:1px solid #E2E8F0"
+            >
+              <p
+                class="text-xs font-bold tracking-widest uppercase"
+                style="color:#94A3B8"
+              >
+                Prévia dos dados
+              </p>
+              <p
+                class="text-xs mt-1"
+                style="color:#64748B"
+              >
+                Exibindo as primeiras linhas da planilha
+              </p>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr style="border-bottom:1px solid #E2E8F0;background:#F8FAFC">
+                    <th
+                      v-for="(header, index) in sheetHeaders.slice(0, 10)"
+                      :key="index"
+                      class="px-4 py-3 text-left font-semibold"
+                      style="color:#475569;white-space:nowrap"
+                    >
+                      {{ header }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(row, rowIndex) in sheetData.slice(0, 8)"
+                    :key="rowIndex"
+                    style="border-bottom:1px solid #F1F5F9"
+                    :style="{ background: rowIndex % 2 === 0 ? '#fff' : '#F8FAFC' }"
+                  >
+                    <td
+                      v-for="(header, colIndex) in sheetHeaders.slice(0, 10)"
+                      :key="colIndex"
+                      class="px-4 py-3 text-left"
+                      style="color:#64748B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px"
+                    >
+                      {{ row[header] ?? '-' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div
+              v-if="sheetData.length > 8 || sheetHeaders.length > 10"
+              class="px-6 py-3"
+              style="background:#F8FAFC;border-top:1px solid #E2E8F0"
+            >
+              <p
+                class="text-xs font-medium"
+                style="color:#94A3B8"
+              >
+                <span v-if="sheetData.length > 8">
+                  + {{ sheetData.length - 8 }} linhas adicionais
+                </span>
+                <span v-if="sheetHeaders.length > 10" class="ml-2">
+                  + {{ sheetHeaders.length - 10 }} colunas adicionais
+                </span>
+              </p>
+            </div>
+          </div>
+        
         </div>
 
         <div class="flex flex-col gap-6">
@@ -439,6 +517,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import * as XLSX from 'xlsx'
 import InnerShell from '../components/InnerShell.vue'
 
 const router = useRouter()
@@ -455,6 +534,8 @@ const rows = ref(0)
 const cols = ref(0)
 const loading = ref(false)
 const processed = ref(false)
+const sheetData = ref([])
+const sheetHeaders = ref([])
 
 const formats = ['XLSX', 'XLS', 'CSV', 'ODS']
 
@@ -565,12 +646,43 @@ function handleFile(selectedFile) {
   file.value = selectedFile
   processed.value = false
   loading.value = true
+  sheetData.value = []
+  sheetHeaders.value = []
 
+  // Simular processamento com delay
   setTimeout(() => {
-    rows.value = Math.floor(Math.random() * 1200) + 200
-    cols.value = Math.floor(Math.random() * 18) + 5
-    loading.value = false
-    processed.value = true
+    try {
+      const reader = new FileReader()
+      
+      reader.onload = (event) => {
+        const data = new Uint8Array(event.target.result)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        
+        // Ler dados com headers
+        const jsonData = XLSX.utils.sheet_to_json(worksheet)
+        
+        // Armazenar headers
+        if (jsonData.length > 0) {
+          sheetHeaders.value = Object.keys(jsonData[0])
+        }
+        
+        // Armazenar apenas as primeiras 10 linhas para prévia
+        sheetData.value = jsonData.slice(0, 10)
+        
+        rows.value = jsonData.length
+        cols.value = sheetHeaders.value.length
+        loading.value = false
+        processed.value = true
+      }
+      
+      reader.readAsArrayBuffer(selectedFile)
+    } catch (error) {
+      console.error('Erro ao processar arquivo:', error)
+      loading.value = false
+      processed.value = false
+    }
   }, 1400)
 }
 
@@ -579,6 +691,8 @@ function removeFile() {
   rows.value = 0
   cols.value = 0
   processed.value = false
+  sheetData.value = []
+  sheetHeaders.value = []
 
   if (inputRef.value) {
     inputRef.value.value = ''
