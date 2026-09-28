@@ -58,7 +58,6 @@
             B
           </button>
 
-          <!-- Modal do usuário -->
           <div
             v-if="userMenuOpen"
             class="fixed inset-0 z-40"
@@ -145,6 +144,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path :d="item.icon"/>
             </svg>
+
             <span class="text-sm font-semibold">
               {{ item.label }}
             </span>
@@ -255,7 +255,302 @@
             </div>
           </div>
 
-          <section v-if="dashView === 'carteira'">
+          <section v-if="dashView === 'relatorio'">
+            <div
+              v-if="!uploadStore.arquivo"
+              class="rounded-2xl p-8 text-center"
+              style="background:white;border:1px solid #E2E8F0"
+            >
+              <div
+                class="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center mb-4"
+                style="background:#F1F5F9;color:#64748B"
+              >
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="8" y1="13" x2="16" y2="13"/>
+                  <line x1="8" y1="17" x2="16" y2="17"/>
+                </svg>
+              </div>
+
+              <h2 class="text-lg font-extrabold">
+                Nenhuma planilha analisada
+              </h2>
+
+              <p class="text-sm mt-2" style="color:#94A3B8">
+                Envie uma planilha pela tela de Upload para visualizar o relatório.
+              </p>
+
+              <button
+                class="mt-5 px-4 py-2.5 rounded-lg text-xs font-bold"
+                style="background:#0F6E56;color:white"
+                @click="goUpload"
+              >
+                Enviar planilha
+              </button>
+            </div>
+
+            <div v-else>
+              <div
+                class="rounded-2xl p-5 mb-5"
+                style="background:white;border:1px solid #E2E8F0"
+              >
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
+                    <p
+                      class="text-xs font-bold uppercase tracking-wider"
+                      style="color:#94A3B8"
+                    >
+                      Arquivo analisado
+                    </p>
+
+                    <p class="text-lg font-extrabold mt-1">
+                      {{ uploadStore.nomeArquivo }}
+                    </p>
+                  </div>
+
+                  <span
+                    class="px-3 py-1.5 rounded-full text-xs font-bold"
+                    style="background:#E8F5F0;color:#0F6E56"
+                  >
+                    Análise concluída
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
+                <KpiCard
+                  label="Total de registros"
+                  :value="uploadStore.totalLinhas.toLocaleString('pt-BR')"
+                  sub="Registros analisados"
+                  accent
+                />
+
+                <KpiCard
+                  label="Registros válidos"
+                  :value="uploadStore.registrosValidos.toLocaleString('pt-BR')"
+                  sub="Sem erros encontrados"
+                />
+
+                <KpiCard
+                  label="Registros com erros"
+                  :value="uploadStore.registrosComErro.toLocaleString('pt-BR')"
+                  sub="Registros que precisam de atenção"
+                />
+
+                <KpiCard
+                  label="Total de erros"
+                  :value="uploadStore.totalErros.toLocaleString('pt-BR')"
+                  sub="Ocorrências encontradas"
+                />
+              </div>
+
+              <div class="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-5">
+                <ChartCard
+                  title="Erros por tipo"
+                  subtitle="Quantidade de ocorrências por categoria"
+                >
+                  <div
+                    v-if="Object.keys(uploadStore.errosPorTipo).length"
+                    class="space-y-4"
+                  >
+                    <div
+                      v-for="(quantidade, tipo) in uploadStore.errosPorTipo"
+                      :key="tipo"
+                    >
+                      <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-sm font-semibold">
+                          {{ tipo }}
+                        </span>
+
+                        <span
+                          class="text-sm font-extrabold"
+                          style="color:#0F6E56"
+                        >
+                          {{ quantidade }}
+                        </span>
+                      </div>
+
+                      <div
+                        class="h-2 rounded-full overflow-hidden"
+                        style="background:#F1F5F9"
+                      >
+                        <div
+                          class="h-full rounded-full"
+                          :style="{
+                            width: `${(quantidade / uploadStore.totalErros) * 100}%`,
+                            background: GREEN
+                          }"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    v-else
+                    class="py-8 text-center text-sm"
+                    style="color:#64748B"
+                  >
+                    Nenhum erro encontrado.
+                  </div>
+                </ChartCard>
+
+                <div class="xl:col-span-2">
+                  <ChartCard
+                    title="Resumo da validação"
+                    subtitle="Situação dos registros analisados"
+                  >
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div
+                        class="rounded-xl p-5"
+                        style="background:#E8F5F0;border:1px solid #CDE9DE"
+                      >
+                        <p
+                          class="text-xs font-bold uppercase tracking-wider"
+                          style="color:#527064"
+                        >
+                          Registros válidos
+                        </p>
+
+                        <p
+                          class="text-3xl font-extrabold mt-2"
+                          style="color:#0F6E56"
+                        >
+                          {{ uploadStore.registrosValidos }}
+                        </p>
+
+                        <p class="text-xs mt-1" style="color:#527064">
+                          Sem erros identificados
+                        </p>
+                      </div>
+
+                      <div
+                        class="rounded-xl p-5"
+                        style="background:#FFF1F1;border:1px solid #F8D2D2"
+                      >
+                        <p
+                          class="text-xs font-bold uppercase tracking-wider"
+                          style="color:#9F2D2D"
+                        >
+                          Registros com erro
+                        </p>
+
+                        <p
+                          class="text-3xl font-extrabold mt-2"
+                          style="color:#E33838"
+                        >
+                          {{ uploadStore.registrosComErro }}
+                        </p>
+
+                        <p class="text-xs mt-1" style="color:#9F2D2D">
+                          Necessitam de atenção
+                        </p>
+                      </div>
+                    </div>
+                  </ChartCard>
+                </div>
+              </div>
+
+              <ChartCard
+                title="Detalhamento dos erros"
+                subtitle="Linha, campo e descrição de cada problema encontrado"
+              >
+                <div
+                  v-if="uploadStore.erros.length"
+                  class="overflow-x-auto"
+                >
+                  <table class="w-full text-left">
+                    <thead>
+                      <tr
+                        class="text-xs uppercase tracking-wider"
+                        style="color:#94A3B8;border-bottom:1px solid #E2E8F0"
+                      >
+                        <th class="py-3 px-3">Linha</th>
+                        <th class="py-3 px-3">Campo</th>
+                        <th class="py-3 px-3">Tipo</th>
+                        <th class="py-3 px-3">Descrição</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      <tr
+                        v-for="(erro, index) in uploadStore.erros"
+                        :key="`${erro.linha}-${erro.campo}-${index}`"
+                        style="border-bottom:1px solid #F1F5F9"
+                      >
+                        <td class="py-4 px-3">
+                          <span
+                            class="inline-flex items-center justify-center w-9 h-9 rounded-lg text-xs font-extrabold"
+                            style="background:#F1F5F9;color:#0E1B30"
+                          >
+                            {{ erro.linha }}
+                          </span>
+                        </td>
+
+                        <td class="py-4 px-3 text-sm font-semibold">
+                          {{ erro.campo }}
+                        </td>
+
+                        <td class="py-4 px-3">
+                          <span
+                            class="px-2.5 py-1 rounded-full text-xs font-bold"
+                            :style="{
+                              background:
+                                erro.tipo === 'Campo obrigatório'
+                                  ? '#FFF7ED'
+                                  : erro.tipo === 'Registro duplicado'
+                                  ? '#EFF6FF'
+                                  : '#FFF1F1',
+                              color:
+                                erro.tipo === 'Campo obrigatório'
+                                  ? '#C2410C'
+                                  : erro.tipo === 'Registro duplicado'
+                                  ? '#2563EB'
+                                  : '#E33838'
+                            }"
+                          >
+                            {{ erro.tipo }}
+                          </span>
+                        </td>
+
+                        <td
+                          class="py-4 px-3 text-sm"
+                          style="color:#64748B"
+                        >
+                          {{ erro.descricao }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div
+                  v-else
+                  class="py-10 text-center"
+                >
+                  <p class="text-sm font-semibold">
+                    Nenhum erro encontrado.
+                  </p>
+
+                  <p
+                    class="text-xs mt-1"
+                    style="color:#94A3B8"
+                  >
+                    Todos os registros passaram pelas validações atuais.
+                  </p>
+                </div>
+              </ChartCard>
+            </div>
+          </section>
+
+          <section v-else-if="dashView === 'carteira'">
             <div class="flex flex-wrap gap-3 mb-6">
               <FilterPills
                 label="Segmento"
@@ -271,16 +566,19 @@
                 sub="Carteira total"
                 accent
               />
+
               <KpiCard
                 label="Nível A"
                 :value="aTotal.toLocaleString('pt-BR')"
                 sub="25% da carteira"
               />
+
               <KpiCard
                 label="Nível B"
                 :value="bTotal.toLocaleString('pt-BR')"
                 sub="45% da carteira"
               />
+
               <KpiCard
                 label="Nível C"
                 :value="cTotal.toLocaleString('pt-BR')"
@@ -345,21 +643,25 @@
                 sub="faturamento médio"
                 accent
               />
+
               <KpiCard
                 label="Mediana"
                 value="R$ 1.850"
                 sub="valor central"
               />
+
               <KpiCard
                 label="Q1"
                 value="R$ 980"
                 sub="25º percentil"
               />
+
               <KpiCard
                 label="Q3"
                 value="R$ 2.840"
                 sub="75º percentil"
               />
+
               <KpiCard
                 label="Desvio padrão"
                 value="R$ 1.420"
@@ -401,6 +703,7 @@
                     <span class="text-sm" style="color:#64748B">
                       {{ row[0] }}
                     </span>
+
                     <span class="text-sm font-bold">
                       {{ row[1] }}
                     </span>
@@ -733,8 +1036,10 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUploadstore } from '../store/uploadstore'
 
 const router = useRouter()
+const uploadStore = useUploadstore()
 
 const NAVY = '#0E1B30'
 const GREEN = '#0F6E56'
@@ -749,7 +1054,7 @@ const COLOR_C = ORANGE
 
 const menuOpen = ref(false)
 const userMenuOpen = ref(false)
-const dashView = ref('carteira')
+const dashView = ref('relatorio')
 const segFilt = ref('Todos')
 const faturamentoSegFilt = ref('Todos')
 const nivelFilt = ref('Todos')
@@ -763,11 +1068,16 @@ const cTotal = 374
 
 const dashNavItems = [
   {
-    id: 'carteira',
-    label: 'Perfil da Carteira',
-    shortLabel: 'Carteira',
-    icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 1 1 0 7.75M9 7a4 4 0 1 0 0 8 4 4 0 0 0-8z'
+    id: 'relatorio',
+    label: 'Relatório de Validação',
+    shortLabel: 'Relatório',
+    icon: 'M9 12h6M9 16h6M9 8h6M5 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z'
   },
+  {
+  id: 'carteira',
+  label: 'Perfil da Carteira',
+  icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'
+},
   {
     id: 'faturamento',
     label: 'Análise de Faturamento',
@@ -795,6 +1105,10 @@ const dashNavItems = [
 ]
 
 const dashViewTitles = {
+  relatorio: {
+    title: 'Relatório de Validação',
+    subtitle: 'Resultado da análise e validação dos dados da planilha'
+  },
   carteira: {
     title: 'Perfil da Carteira',
     subtitle: 'Segmentos, níveis A/B/C e serviços contratados'

@@ -280,6 +280,7 @@
               >
                 Prévia dos dados
               </p>
+
               <p
                 class="text-xs mt-1"
                 style="color:#64748B"
@@ -302,6 +303,7 @@
                     </th>
                   </tr>
                 </thead>
+
                 <tbody>
                   <tr
                     v-for="(row, rowIndex) in sheetData.slice(0, 8)"
@@ -334,13 +336,13 @@
                 <span v-if="sheetData.length > 8">
                   + {{ sheetData.length - 8 }} linhas adicionais
                 </span>
+
                 <span v-if="sheetHeaders.length > 10" class="ml-2">
                   + {{ sheetHeaders.length - 10 }} colunas adicionais
                 </span>
               </p>
             </div>
           </div>
-        
         </div>
 
         <div class="flex flex-col gap-6">
@@ -500,10 +502,11 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import * as XLSX from 'xlsx'
+import { useUploadstore } from '../store/uploadstore'
 import InnerShell from '../components/InnerShell.vue'
 
 const router = useRouter()
+const uploadStore = useUploadstore()
 
 const NAVY = '#0E1B30'
 const GREEN = '#0F6E56'
@@ -542,6 +545,7 @@ const steps = computed(() => [
 
 const fileSize = computed(() => {
   if (!file.value) return '0.0'
+
   return (file.value.size / 1024).toFixed(1)
 })
 
@@ -587,7 +591,7 @@ const uploadAreaStyle = computed(() => ({
 const actions = computed(() => [
   {
     label: 'Ver dashboard',
-    icon: 'M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z',
+    icon: 'M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z',
     active: processed.value,
     onClick: () => {
       if (processed.value) {
@@ -625,48 +629,46 @@ function handleDrop(event) {
   }
 }
 
-function handleFile(selectedFile) {
+async function handleFile(selectedFile) {
   file.value = selectedFile
   processed.value = false
   loading.value = true
+  rows.value = 0
+  cols.value = 0
   sheetData.value = []
   sheetHeaders.value = []
 
-  // Simular processamento com delay
-  setTimeout(() => {
-    try {
-      const reader = new FileReader()
-      
-      reader.onload = (event) => {
-        const data = new Uint8Array(event.target.result)
-        const workbook = XLSX.read(data, { type: 'array' })
-        const sheetName = workbook.SheetNames[0]
-        const worksheet = workbook.Sheets[sheetName]
-        
-        // Ler dados com headers
-        const jsonData = XLSX.utils.sheet_to_json(worksheet)
-        
-        // Armazenar headers
-        if (jsonData.length > 0) {
-          sheetHeaders.value = Object.keys(jsonData[0])
-        }
-        
-        // Armazenar apenas as primeiras 10 linhas para prévia
-        sheetData.value = jsonData.slice(0, 10)
-        
-        rows.value = jsonData.length
-        cols.value = sheetHeaders.value.length
-        loading.value = false
-        processed.value = true
-      }
-      
-      reader.readAsArrayBuffer(selectedFile)
-    } catch (error) {
-      console.error('Erro ao processar arquivo:', error)
+  try {
+    await uploadStore.lerArquivo(selectedFile)
+
+    if (uploadStore.erro) {
+      console.error(uploadStore.erro)
+
       loading.value = false
       processed.value = false
+      return
     }
-  }, 1400)
+
+    rows.value = uploadStore.totalLinhas
+    cols.value = uploadStore.totalColunas
+
+    sheetHeaders.value = uploadStore.colunas
+    sheetData.value = uploadStore.dadosTratados.slice(0, 10)
+
+    loading.value = false
+    processed.value = true
+
+    console.log('Arquivo processado com sucesso!')
+    console.log('Linhas:', rows.value)
+    console.log('Colunas:', cols.value)
+    console.log('Dados:', uploadStore.dadosTratados)
+    console.log('Erros encontrados:', uploadStore.erros)
+  } catch (error) {
+    console.error('Erro ao processar arquivo:', error)
+
+    loading.value = false
+    processed.value = false
+  }
 }
 
 function removeFile() {
@@ -676,6 +678,8 @@ function removeFile() {
   processed.value = false
   sheetData.value = []
   sheetHeaders.value = []
+
+  uploadStore.limpar()
 
   if (inputRef.value) {
     inputRef.value.value = ''
