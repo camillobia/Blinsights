@@ -52,9 +52,16 @@ public class ConsultorService {
 
         Consultor consultor = buscarPorId(id);
 
+        repository.findByEmail(dados.getEmail())
+                .filter(outroConsultor -> !outroConsultor.getId().equals(id))
+                .ifPresent(outroConsultor -> {
+                    throw new RuntimeException("E-mail já cadastrado");
+                });
+
         consultor.setNome(dados.getNome());
         consultor.setEmail(dados.getEmail());
         consultor.setSenha(dados.getSenha());
+        consultor.setMatricula(dados.getMatricula());
 
         return repository.save(consultor);
     }
