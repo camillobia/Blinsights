@@ -28,6 +28,15 @@ public class UsuarioService {
         return usuarioRepository.save(usuario);
     }
 
+    public Optional<Usuario> autenticar(String email, String senha) {
+        if (email == null || email.isBlank() || senha == null) {
+            return Optional.empty();
+        }
+
+        return usuarioRepository.findByEmailIgnoreCase(email.trim())
+                .filter(usuario -> senha.equals(usuario.getSenha()));
+    }
+
     public void deletar(Long id) {
         usuarioRepository.deleteById(id);
     }

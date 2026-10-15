@@ -1,9 +1,12 @@
 package CTI.BackEnd.controller;
 
 import CTI.BackEnd.dto.UsuarioDto;
+import CTI.BackEnd.dto.UsuarioLoginDto;
+import CTI.BackEnd.dto.UsuarioLoginResponseDto;
 import CTI.BackEnd.model.Usuario;
 import CTI.BackEnd.service.UsuarioService;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +20,17 @@ public class UsuarioController {
 
     public UsuarioController(UsuarioService usuarioService) {
         this.usuarioService = usuarioService;
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<UsuarioLoginResponseDto> login(@RequestBody UsuarioLoginDto dto) {
+        return usuarioService.autenticar(dto.getEmail(), dto.getSenha())
+                .map(usuario -> ResponseEntity.ok(new UsuarioLoginResponseDto(
+                        usuario.getId(),
+                        usuario.getNome(),
+                        usuario.getEmail()
+                )))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
     @GetMapping

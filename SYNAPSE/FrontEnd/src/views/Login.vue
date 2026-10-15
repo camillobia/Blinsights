@@ -459,6 +459,14 @@
 
             </div>
 
+            <p
+              v-if="errorMessage"
+              role="alert"
+              class="text-sm text-red-600"
+            >
+              {{ errorMessage }}
+            </p>
+
             <button
               type="submit"
               :disabled="loading"
@@ -533,6 +541,7 @@ const router = useRouter()
 
 const email = ref('')
 const password = ref('')
+const errorMessage = ref('')
 const showPass = ref(false)
 const loading = ref(false)
 const focused = ref(null)
@@ -547,12 +556,37 @@ function goHome() {
   router.push('/')
 }
 
-function handleLogin() {
+async function handleLogin() {
+  errorMessage.value = ''
   loading.value = true
 
-  setTimeout(() => {
+  try {
+    const response = await fetch(
+      `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/usuarios/login`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.value.trim(),
+          senha: password.value
+        })
+      }
+    )
+
+    if (response.status === 401) {
+      errorMessage.value = 'E-mail ou senha inválidos.'
+      return
+    }
+
+    if (!response.ok) {
+      throw new Error(`Falha na autenticação: ${response.status}`)
+    }
+
+    await router.push('/sidebar/upload')
+  } catch {
+    errorMessage.value = 'Não foi possível validar o login. Verifique a conexão e tente novamente.'
+  } finally {
     loading.value = false
-    router.push('/sidebar/upload')
-  }, 1000)
+  }
 }
 </script>
