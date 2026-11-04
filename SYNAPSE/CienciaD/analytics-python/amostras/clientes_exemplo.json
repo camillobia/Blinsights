@@ -1,0 +1,35 @@
+[
+  {
+    "codigoCliente": "CTI001",
+    "nomeCliente": "Metalúrgica Horizonte",
+    "consultor": "ana souza",
+    "segmento": "IND. / Comercio",
+    "nivelCliente": "a",
+    "faturamentoAnual": "1850000",
+    "servicosContratados": "Internet Dedicada;Firewall",
+    "dataContratacao": "2025-01-15",
+    "cidadeUf": "Campinas / sp"
+  },
+  {
+    "codigoCliente": "CTI002",
+    "nomeCliente": "Loja do Bairro",
+    "consultor": "joao silva",
+    "segmento": "comercio",
+    "nivelCliente": "b",
+    "faturamentoAnual": "980000",
+    "servicosContratados": "Rede;Backup",
+    "dataContratacao": "2025-02-10",
+    "cidadeUf": "São Paulo / SP"
+  },
+  {
+    "codigoCliente": "CTI003",
+    "nomeCliente": "Clínica Vida Nova",
+    "consultor": "maria oliveira",
+    "segmento": "saude",
+    "nivelCliente": "c",
+    "faturamentoAnual": "2300000",
+    "servicosContratados": "Firewall;Monitoramento;Suporte",
+    "dataContratacao": "2025-03-22",
+    "cidadeUf": "Rio / rj"
+  }
+]
