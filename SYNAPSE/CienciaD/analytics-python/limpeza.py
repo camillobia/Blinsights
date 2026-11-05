@@ -60,7 +60,7 @@ def parse_numero(valor: Any) -> float:
         return 0.0
 
 
-def parse_data(valor: Any) -> pd.Timestamp | pd.NaT:
+def parse_data(valor: Any) -> Any:
     texto = limpar_texto(valor)
     if not texto:
         return pd.NaT
