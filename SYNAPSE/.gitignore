@@ -1,0 +1,13 @@
+# Arquivos privados
+.env
+.env.*
+!.env.example
+
+# Dependências e builds
+node_modules/
+dist/
+target/
+
+# Arquivos temporários
+*.log
+.DS_Store

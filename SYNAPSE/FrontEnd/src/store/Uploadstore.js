@@ -1,5 +1,53 @@
+
 import { defineStore } from 'pinia'
 import * as XLSX from 'xlsx'
+import api from '../services/api'
+
+// Converte datas do Excel ou textos para o formato esperado pelo Java.
+function converterData(valor) {
+  if (valor instanceof Date) {
+    const ano = valor.getFullYear()
+    const mes = String(valor.getMonth() + 1).padStart(2, '0')
+    const dia = String(valor.getDate()).padStart(2, '0')
+
+    return `${ano}-${mes}-${dia}`
+  }
+
+  // Datas armazenadas como números seriais do Excel.
+  if (typeof valor === 'number') {
+    const data = XLSX.SSF.parse_date_code(valor)
+
+    if (!data) {
+      throw new Error('Data de contratação inválida.')
+    }
+
+    const mes = String(data.m).padStart(2, '0')
+    const dia = String(data.d).padStart(2, '0')
+
+    return `${data.y}-${mes}-${dia}`
+  }
+
+  if (typeof valor === 'string') {
+    const data = valor.trim()
+
+    // Formato DD/MM/AAAA.
+    const brasileira = data.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+
+    if (brasileira) {
+      const [, dia, mes, ano] = brasileira
+      return `${ano}-${mes}-${dia}`
+    }
+
+    // Formato AAAA-MM-DD.
+    const iso = data.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+
+    if (iso) {
+      return data
+    }
+  }
+
+  throw new Error('Data de contratação inválida ou em formato não reconhecido.')
+}
 
 export const useUploadstore = defineStore('upload', {
   state: () => ({
@@ -7,7 +55,10 @@ export const useUploadstore = defineStore('upload', {
     dadosOriginais: [],
     dadosTratados: [],
     erro: '',
-    erros: []
+    erros: [],
+    enviando: false,
+    erroBackend: '',
+    clientesValidados: []
   }),
 
   getters: {
@@ -70,6 +121,8 @@ export const useUploadstore = defineStore('upload', {
   actions: {
     async lerArquivo(file) {
       this.erro = ''
+      this.erroBackend = ''
+      this.clientesValidados = []
       this.arquivo = file
       this.dadosOriginais = []
       this.dadosTratados = []
@@ -147,9 +200,7 @@ export const useUploadstore = defineStore('upload', {
 
         if (typeof novaLinha.nivel_cliente === 'string') {
           novaLinha.nivel_cliente =
-            novaLinha.nivel_cliente
-              .trim()
-              .toUpperCase()
+            novaLinha.nivel_cliente.trim().toUpperCase()
         }
 
         return novaLinha
@@ -167,8 +218,7 @@ export const useUploadstore = defineStore('upload', {
         'nivel_cliente',
         'faturamento_anual',
         'servicos_contratados',
-        'data_contratacao',
-        'cidade'
+        'data_contratacao'
       ]
 
       this.dadosOriginais.forEach((linha, index) => {
@@ -316,12 +366,82 @@ export const useUploadstore = defineStore('upload', {
       })
     },
 
+    async enviarParaBackend() {
+      this.erroBackend = ''
+      this.clientesValidados = []
+
+      if (this.enviando) return
+
+      // Não envia linhas que tenham erros de validação.
+      const linhasComErro = new Set(
+        this.erros
+          .filter((erro) => erro.tipo !== 'Padronização')
+          .map((erro) => erro.linha)
+      )
+
+      const linhasValidas = this.dadosTratados.filter(
+        (_, index) => !linhasComErro.has(index + 2)
+      )
+
+      if (!linhasValidas.length) {
+        this.erroBackend = 'Não existem registros válidos para enviar.'
+        return
+      }
+
+      try {
+        this.enviando = true
+
+        const clientes = linhasValidas.map((linha) => ({
+          codigoCliente: String(linha.codigo_cliente),
+          nomeCliente: String(linha.nome_cliente),
+          consultor: String(linha.consultor),
+          segmento: String(linha.segmento),
+          nivelCliente: String(linha.nivel_cliente),
+          faturamentoAnual: Number(linha.faturamento_anual),
+          servicosContratados: String(linha.servicos_contratados),
+          dataContratacao: converterData(linha.data_contratacao),
+          cidade: linha.cidade ? String(linha.cidade) : '',
+          uf: linha.uf ? String(linha.uf) : ''
+        }))
+
+        const resposta = await api.post(
+          '/api/clientes/validar',
+          clientes
+        )
+
+        this.clientesValidados = resposta.data
+
+        return resposta.data
+      } catch (error) {
+        console.error('Erro ao enviar clientes para o backend:', error)
+
+        const dadosErro = error.response?.data
+
+        if (typeof dadosErro === 'string') {
+          this.erroBackend = dadosErro
+        } else if (dadosErro?.message) {
+          this.erroBackend = dadosErro.message
+        } else if (dadosErro?.mensagem) {
+          this.erroBackend = dadosErro.mensagem
+        } else {
+          this.erroBackend =
+            'Não foi possível validar os clientes no servidor. Verifique se o backend está em execução.'
+        }
+      } finally {
+        this.enviando = false
+      }
+    },
+
     limpar() {
       this.arquivo = null
       this.dadosOriginais = []
       this.dadosTratados = []
       this.erro = ''
       this.erros = []
+      this.enviando = false
+      this.erroBackend = ''
+      this.clientesValidados = []
     }
   }
 })
+  

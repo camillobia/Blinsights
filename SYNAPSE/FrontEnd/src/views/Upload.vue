@@ -1,3 +1,4 @@
+
 <template>
   <InnerShell>
     <div class="max-w-7xl mx-auto px-8 py-12">
@@ -192,9 +193,9 @@
                 >
                   {{
                     loading
-                      ? 'Aguarde enquanto lemos os dados'
+                      ? 'Aguarde enquanto enviamos os dados para validação'
                       : processed
-                        ? `${fileSize} KB · processado com sucesso`
+                        ? `${fileSize} KB · validado pelo backend`
                         : file
                           ? `${fileSize} KB`
                           : 'ou clique para selecionar · XLSX, XLS, CSV'
@@ -236,6 +237,15 @@
                 Remover e trocar arquivo
               </button>
             </div>
+          </div>
+
+          <!-- Mensagem de erro -->
+          <div
+            v-if="uploadStore.erroBackend || uploadStore.erro"
+            class="rounded-xl p-4 text-sm"
+            style="color:#B91C1C;background:#FEF2F2;border:1px solid #FECACA"
+          >
+            {{ uploadStore.erroBackend || uploadStore.erro }}
           </div>
 
           <input
@@ -431,14 +441,14 @@
                     class="text-sm font-bold"
                     :style="{ color: GREEN }"
                   >
-                    ✓ Processado com sucesso
+                    ✓ Validado com sucesso
                   </p>
 
                   <p
                     class="text-xs mt-0.5"
                     style="color:#64748B"
                   >
-                    Pronto para análise
+                    Resposta recebida do Java
                   </p>
                 </template>
 
@@ -502,7 +512,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUploadstore } from '../store/uploadstore'
+import { useUploadstore } from '../store/Uploadstore'
 import InnerShell from '../components/InnerShell.vue'
 
 const router = useRouter()
@@ -511,7 +521,6 @@ const uploadStore = useUploadstore()
 const NAVY = '#0E1B30'
 const GREEN = '#0F6E56'
 const ACCENT = '#3EA083'
-const RED = '#E33838'
 
 const inputRef = ref(null)
 const file = ref(null)
@@ -523,7 +532,7 @@ const processed = ref(false)
 const sheetData = ref([])
 const sheetHeaders = ref([])
 
-const formats = ['XLSX', 'XLS', 'CSV', 'ODS']
+const formats = ['XLSX', 'XLS', 'CSV']
 
 const steps = computed(() => [
   {
@@ -608,6 +617,7 @@ const actions = computed(() => [
 ])
 
 function openFileDialog() {
+  if (loading.value) return
   inputRef.value?.click()
 }
 
@@ -617,10 +627,15 @@ function handleInput(event) {
   if (selectedFile) {
     handleFile(selectedFile)
   }
+
+  // Permite selecionar novamente o mesmo arquivo.
+  event.target.value = ''
 }
 
 function handleDrop(event) {
   dragging.value = false
+
+  if (loading.value) return
 
   const droppedFile = event.dataTransfer.files?.[0]
 
@@ -630,6 +645,8 @@ function handleDrop(event) {
 }
 
 async function handleFile(selectedFile) {
+  if (loading.value) return
+
   file.value = selectedFile
   processed.value = false
   loading.value = true
@@ -638,14 +655,16 @@ async function handleFile(selectedFile) {
   sheetData.value = []
   sheetHeaders.value = []
 
+  // Limpa mensagens da tentativa anterior.
+  uploadStore.erroBackend = ''
+  uploadStore.clientesValidados = []
+
   try {
+    // 1. Lê e trata o arquivo no frontend.
     await uploadStore.lerArquivo(selectedFile)
 
     if (uploadStore.erro) {
-      console.error(uploadStore.erro)
-
-      loading.value = false
-      processed.value = false
+      console.error('Erro na leitura do arquivo:', uploadStore.erro)
       return
     }
 
@@ -655,23 +674,46 @@ async function handleFile(selectedFile) {
     sheetHeaders.value = uploadStore.colunas
     sheetData.value = uploadStore.dadosTratados.slice(0, 10)
 
-    loading.value = false
+    // 2. Envia os registros válidos para o backend Java.
+    const clientesValidados =
+      await uploadStore.enviarParaBackend()
+
+    // Se a store não conseguiu enviar ou validar, não marca como processado.
+    if (!clientesValidados) {
+      console.error(
+        'Não foi possível validar os dados no backend.',
+        uploadStore.erroBackend
+      )
+      return
+    }
+
+    // 3. Só considera concluído depois da resposta do Java.
     processed.value = true
 
-    console.log('Arquivo processado com sucesso!')
+    console.log('Arquivo processado e validado pelo backend!')
     console.log('Linhas:', rows.value)
     console.log('Colunas:', cols.value)
     console.log('Dados:', uploadStore.dadosTratados)
+    console.log('Clientes validados pelo Java:', clientesValidados)
     console.log('Erros encontrados:', uploadStore.erros)
-  } catch (error) {
-    console.error('Erro ao processar arquivo:', error)
 
+  } catch (error) {
+    console.error('Erro ao processar ou enviar arquivo:', error)
+
+    uploadStore.erroBackend =
+      error.response?.data?.message ||
+      error.response?.data?.mensagem ||
+      error.message ||
+      'Ocorreu um erro ao processar o arquivo.'
+
+  } finally {
     loading.value = false
-    processed.value = false
   }
 }
 
 function removeFile() {
+  if (loading.value) return
+
   file.value = null
   rows.value = 0
   cols.value = 0
