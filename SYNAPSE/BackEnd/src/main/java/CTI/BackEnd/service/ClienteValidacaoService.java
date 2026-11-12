@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.Locale;
 
 @Service
 public class ClienteValidacaoService {
@@ -19,7 +20,7 @@ public class ClienteValidacaoService {
 
         for (ClienteDTO cliente : clientes) {
 
-            if (!codigos.add(cliente.codigoCliente().trim())) {
+            if (!codigos.add(cliente.codigoCliente().trim().toUpperCase(Locale.ROOT))) {
                 throw new IllegalArgumentException(
                         "Código de cliente duplicado: " + cliente.codigoCliente().trim()
                 );
@@ -46,27 +47,31 @@ public class ClienteValidacaoService {
 
     private String padronizarSegmento(String segmento) {
 
-        String s = segmento.trim().toLowerCase();
+        String s = segmento.trim().toLowerCase(Locale.ROOT);
 
-        if (s.equals("ind.") || s.equals("industria") || s.equals("indústria")) {
-            return "Indústria";
-        }
+        return java.util.Arrays.stream(s.split("\\s*/\\s*"))
+                .map(this::padronizarSegmentoIndividual)
+                .collect(java.util.stream.Collectors.joining(" / "));
+    }
 
-        if (s.equals("comercio") || s.equals("comércio")) {
-            return "Comércio";
-        }
-
-        if (s.equals("servicos") || s.equals("serviços")) {
-            return "Serviços";
-        }
-
-        return segmento.trim();
+    private String padronizarSegmentoIndividual(String segmento) {
+        return switch (segmento) {
+            case "ind.", "industria", "indústria" -> "Indústria";
+            case "comercio", "comércio" -> "Comércio";
+            case "servicos", "serviços" -> "Serviços";
+            case "saude", "saúde" -> "Saúde";
+            case "educacao", "educação" -> "Educação";
+            case "tecnologia" -> "Tecnologia";
+            default -> segmento.isEmpty()
+                    ? segmento
+                    : segmento.substring(0, 1).toUpperCase(Locale.ROOT) + segmento.substring(1);
+        };
     }
 
     private String formatarNome(String nome) {
 
-        String texto = nome.trim().toLowerCase();
-
-        return texto.substring(0, 1).toUpperCase() + texto.substring(1);
+        return java.util.Arrays.stream(nome.trim().toLowerCase(Locale.ROOT).split("\\s+"))
+                .map(parte -> parte.substring(0, 1).toUpperCase(Locale.ROOT) + parte.substring(1))
+                .collect(java.util.stream.Collectors.joining(" "));
     }
 }

@@ -21,6 +21,10 @@ const routes = [
     component: Upload
   },
   {
+    path: '/dashboard',
+    redirect: '/sidebar/dashboard'
+  },
+  {
     path: '/sidebar/dashboard',
     name: 'Dashboard',
     component: Dashboard
@@ -30,6 +34,16 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach((to) => {
+  const autenticado = Boolean(localStorage.getItem('authToken'))
+  if (to.path.startsWith('/sidebar') && !autenticado) {
+    return '/login'
+  }
+  if (to.path === '/login' && autenticado) {
+    return '/sidebar/upload'
+  }
 })
 
 export default router

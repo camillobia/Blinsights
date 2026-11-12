@@ -84,7 +84,7 @@ export const useUploadstore = defineStore('upload', {
       return [
         ...new Set(
           state.erros
-            .filter((erro) => erro.tipo !== 'Padronização')
+            .filter((erro) => erro.tipo !== 'Padronização' && erro.linha > 1)
             .map((erro) => erro.linha)
         )
       ]
@@ -93,7 +93,7 @@ export const useUploadstore = defineStore('upload', {
     registrosComErro: (state) => {
       return new Set(
         state.erros
-          .filter((erro) => erro.tipo !== 'Padronização')
+          .filter((erro) => erro.tipo !== 'Padronização' && erro.linha > 1)
           .map((erro) => erro.linha)
       ).size
     },
@@ -103,7 +103,7 @@ export const useUploadstore = defineStore('upload', {
 
       const registrosComErro = new Set(
         state.erros
-          .filter((erro) => erro.tipo !== 'Padronização')
+          .filter((erro) => erro.tipo !== 'Padronização' && erro.linha > 1)
           .map((erro) => erro.linha)
       ).size
 
@@ -221,6 +221,31 @@ export const useUploadstore = defineStore('upload', {
         'data_contratacao'
       ]
 
+      const camposPlanilha = [
+        'codigo_cliente',
+        'nome_cliente',
+        'consultor',
+        'segmento',
+        'nivel_cliente',
+        'faturamento_anual',
+        'servicos_contratados',
+        'data_contratacao'
+      ]
+
+      const cabecalhos = this.dadosOriginais[0]
+        ? Object.keys(this.dadosOriginais[0])
+        : []
+      const ausentes = camposPlanilha.filter((campo) => !cabecalhos.includes(campo))
+      if (ausentes.length) {
+        this.erros.push({
+          linha: 0,
+          campo: 'cabeçalho',
+          tipo: 'Coluna ausente',
+          descricao: `Colunas ausentes na planilha: ${ausentes.join(', ')}.`
+        })
+        return
+      }
+
       this.dadosOriginais.forEach((linha, index) => {
         const numeroLinha = index + 2
 
@@ -263,12 +288,19 @@ export const useUploadstore = defineStore('upload', {
       const codigosEncontrados = new Map()
 
       this.dadosTratados.forEach((linha, index) => {
-        const codigo = linha.codigo_cliente
+        const codigo = String(linha.codigo_cliente || '').trim().toUpperCase()
         const numeroLinha = index + 2
 
         if (!codigo) return
 
         if (codigosEncontrados.has(codigo)) {
+          const linhaAnterior = codigosEncontrados.get(codigo)
+          this.erros.push({
+            linha: linhaAnterior,
+            campo: 'codigo_cliente',
+            tipo: 'Registro duplicado',
+            descricao: `O código do cliente ${codigo} está duplicado.`
+          })
           this.erros.push({
             linha: numeroLinha,
             campo: 'codigo_cliente',
@@ -372,6 +404,14 @@ export const useUploadstore = defineStore('upload', {
 
       if (this.enviando) return
 
+      const erroEstrutural = this.erros.find(
+        (erro) => erro.tipo === 'Coluna ausente'
+      )
+      if (erroEstrutural) {
+        this.erroBackend = erroEstrutural.descricao
+        return
+      }
+
       // Não envia linhas que tenham erros de validação.
       const linhasComErro = new Set(
         this.erros
@@ -391,6 +431,8 @@ export const useUploadstore = defineStore('upload', {
       try {
         this.enviando = true
 
+        const totalLinhas = this.dadosTratados.length
+
         const clientes = linhasValidas.map((linha) => ({
           codigoCliente: String(linha.codigo_cliente),
           nomeCliente: String(linha.nome_cliente),
@@ -406,7 +448,13 @@ export const useUploadstore = defineStore('upload', {
 
         const resposta = await api.post(
           '/api/clientes/validar',
-          clientes
+          clientes,
+          {
+            headers: {
+              'X-File-Name': this.arquivo?.name || 'upload',
+              'X-Total-Linhas': totalLinhas
+            }
+          }
         )
 
         this.clientesValidados = resposta.data
@@ -419,6 +467,8 @@ export const useUploadstore = defineStore('upload', {
 
         if (typeof dadosErro === 'string') {
           this.erroBackend = dadosErro
+        } else if (dadosErro?.detail) {
+          this.erroBackend = dadosErro.detail
         } else if (dadosErro?.message) {
           this.erroBackend = dadosErro.message
         } else if (dadosErro?.mensagem) {

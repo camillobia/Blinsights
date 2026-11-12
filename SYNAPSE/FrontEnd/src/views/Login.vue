@@ -582,6 +582,12 @@ async function handleLogin() {
       throw new Error(`Falha na autenticação: ${response.status}`)
     }
 
+    const usuario = await response.json()
+    if (!usuario.token) {
+      throw new Error('O servidor não retornou o token de autenticação.')
+    }
+
+    localStorage.setItem('authToken', usuario.token)
     await router.push('/sidebar/upload')
   } catch {
     errorMessage.value = 'Não foi possível validar o login. Verifique a conexão e tente novamente.'

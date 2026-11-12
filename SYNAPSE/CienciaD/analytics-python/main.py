@@ -1,23 +1,40 @@
 import json
 from pathlib import Path
+from typing import Any
 
 from analise import calcular
-from banco import salvar_dados
+from banco import get_engine, marcar_erro, salvar_dados
 from insights import gerar_insights
 from limpeza import tratar
 
 
-def processar_json(dados_brutos: list[dict]) -> dict:
+def processar_json(dados_brutos: list[dict[str, Any]]) -> dict[str, Any]:
     df_limpo, avisos = tratar(dados_brutos)
-    resumo = calcular(df_limpo, linhas_recebidas=len(dados_brutos))
-    frases = gerar_insights(resumo, dados_brutos)
+    estatisticas = calcular(df_limpo, linhas_recebidas=len(dados_brutos))
+    estatisticas["insights"] = gerar_insights(estatisticas)
+    estatisticas["avisos"] = avisos
+    return estatisticas
 
-    payload = {
-        "resumo": resumo,
-        "insights": frases,
-        "avisos": avisos,
-    }
-    return payload
+
+def processar_lote(
+    lote_id: int,
+    dados_brutos: list[dict[str, Any]],
+    engine=None,
+) -> dict[str, Any]:
+    banco = engine or get_engine()
+    try:
+        df_limpo, avisos = tratar(dados_brutos)
+        estatisticas = calcular(df_limpo, linhas_recebidas=len(dados_brutos))
+        estatisticas["insights"] = gerar_insights(estatisticas)
+        estatisticas["avisos"] = avisos
+        salvar_dados(banco, lote_id, df_limpo, estatisticas)
+        return estatisticas
+    except Exception as erro:
+        marcar_erro(banco, lote_id, str(erro))
+        raise
+    finally:
+        if engine is None:
+            banco.dispose()
 
 
 def main() -> None:

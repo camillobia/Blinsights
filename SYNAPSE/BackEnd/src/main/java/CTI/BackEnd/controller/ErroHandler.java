@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.HashMap;
@@ -48,6 +49,16 @@ public class ErroHandler {
                 );
 
         return ResponseEntity.badRequest().body(erros);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> tratarJsonInvalido(
+            HttpMessageNotReadableException ex) {
+
+        Map<String, String> erro = new HashMap<>();
+        erro.put("mensagem", "Dados inválidos");
+        erro.put("erro", "JSON inválido ou data fora do formato ISO (AAAA-MM-DD).");
+        return ResponseEntity.badRequest().body(erro);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
