@@ -1,13 +1,9 @@
 package CTI.BackEnd.controller;
 
 import CTI.BackEnd.dto.UsuarioDto;
-import CTI.BackEnd.dto.UsuarioLoginDto;
-import CTI.BackEnd.dto.UsuarioLoginResponseDto;
 import CTI.BackEnd.model.Usuario;
 import CTI.BackEnd.service.UsuarioService;
-import CTI.BackEnd.service.TokenService;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,26 +11,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/usuarios")
-public class UsuarioController {
+public class AdminUsuarioController {
 
     private final UsuarioService usuarioService;
-    private final TokenService tokenService;
 
-    public UsuarioController(UsuarioService usuarioService, TokenService tokenService) {
+    public AdminUsuarioController(UsuarioService usuarioService) {
         this.usuarioService = usuarioService;
-        this.tokenService = tokenService;
-    }
-
-    @PostMapping("/login")
-    public ResponseEntity<UsuarioLoginResponseDto> login(@RequestBody UsuarioLoginDto dto) {
-        return usuarioService.autenticar(dto.getEmail(), dto.getSenha())
-                .map(usuario -> ResponseEntity.ok(new UsuarioLoginResponseDto(
-                        usuario.getId(),
-                        usuario.getNome(),
-                        usuario.getEmail(),
-                        tokenService.emitir(usuario)
-                )))
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
     @GetMapping
