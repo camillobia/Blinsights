@@ -6,28 +6,11 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  Chart,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Tooltip,
-  Legend
-} from 'chart.js'
+import { Chart, registerables } from 'chart.js'
 
-Chart.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  ArcElement,
-  Tooltip,
-  Legend
-)
+// Registra controllers (bar, line, doughnut...), escalas e elementos.
+// Sem os controllers o Chart.js lança '"bar" is not a registered controller'.
+Chart.register(...registerables)
 
 const props = defineProps({
   tipo: {

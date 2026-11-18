@@ -193,7 +193,7 @@
                 >
                   {{
                     loading
-                      ? 'Aguarde enquanto enviamos os dados para validação'
+                      ? `${etapa} · ${segundos}s`
                       : processed
                         ? `${fileSize} KB · validado pelo backend`
                         : file
@@ -510,7 +510,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUploadstore } from '../store/Uploadstore'
 import InnerShell from '../components/InnerShell.vue'
@@ -531,6 +531,22 @@ const loading = ref(false)
 const processed = ref(false)
 const sheetData = ref([])
 const sheetHeaders = ref([])
+const etapa = ref('')
+const segundos = ref(0)
+let cronometro = null
+
+function iniciarCronometro() {
+  segundos.value = 0
+  clearInterval(cronometro)
+  cronometro = setInterval(() => { segundos.value++ }, 1000)
+}
+
+function pararCronometro() {
+  clearInterval(cronometro)
+  cronometro = null
+}
+
+onBeforeUnmount(pararCronometro)
 
 const formats = ['XLSX', 'XLS', 'CSV']
 
@@ -659,6 +675,9 @@ async function handleFile(selectedFile) {
   uploadStore.erroBackend = ''
   uploadStore.clientesValidados = []
 
+  iniciarCronometro()
+  etapa.value = 'Lendo a planilha'
+
   try {
     // 1. Lê e trata o arquivo no frontend.
     await uploadStore.lerArquivo(selectedFile)
@@ -675,6 +694,7 @@ async function handleFile(selectedFile) {
     sheetData.value = uploadStore.dadosTratados.slice(0, 10)
 
     // 2. Envia os registros válidos para o backend Java.
+    etapa.value = 'Validando no servidor e gerando as estatísticas'
     const clientesValidados =
       await uploadStore.enviarParaBackend()
 
@@ -707,6 +727,7 @@ async function handleFile(selectedFile) {
       'Ocorreu um erro ao processar o arquivo.'
 
   } finally {
+    pararCronometro()
     loading.value = false
   }
 }

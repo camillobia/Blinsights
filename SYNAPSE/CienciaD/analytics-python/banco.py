@@ -103,11 +103,33 @@ _MIGRACOES = {
 }
 
 
+_engine_compartilhado: Engine | None = None
+_schemas_garantidos: set[int] = set()
+
+
 def get_engine() -> Engine:
-    return create_engine(get_database_url(), pool_pre_ping=True)
+    """Engine único por processo: reaproveita as conexões (abrir SSL com o Azure é caro)."""
+    global _engine_compartilhado
+    if _engine_compartilhado is None:
+        _engine_compartilhado = create_engine(
+            get_database_url(),
+            pool_pre_ping=True,
+            pool_size=3,
+            max_overflow=2,
+            pool_recycle=240,
+        )
+    return _engine_compartilhado
 
 
 def garantir_schema(engine: Engine) -> None:
+    # Conferir o schema custa várias consultas: faz uma vez por engine.
+    if id(engine) in _schemas_garantidos:
+        return
+    _garantir_schema(engine)
+    _schemas_garantidos.add(id(engine))
+
+
+def _garantir_schema(engine: Engine) -> None:
     metadata.create_all(engine)
     inspector = inspect(engine)
 
@@ -166,38 +188,48 @@ def salvar_dados(
     garantir_schema(engine)
     momento = datetime.now().astimezone()
 
-    with engine.begin() as conn:
-        ids_por_codigo: dict[str, int] = {}
-        for _, linha in df_clientes.iterrows():
-            codigo = str(linha["codigo_cliente"])
-            valores = {
-                "nome": str(linha["nome_cliente"]),
-                "segmento": str(linha["segmento"]),
-                "lote_id": lote_id,
-                "codigo_cliente": codigo,
-                "nome_cliente": str(linha["nome_cliente"]),
-                "consultor": str(linha["consultor"]),
-                "nivel_cliente": str(linha["nivel_cliente"]),
-                "faturamento_anual": float(linha["faturamento_anual"]),
-                "cidade": str(linha["cidade"]) or None,
-                "uf": str(linha["uf"]) or None,
-                "data_contratacao": _data(linha["data_contratacao"]),
-                "mes_contratacao": str(linha["mes_contratacao"]),
-            }
-            resultado = conn.execute(cliente.insert().values(**valores))
-            ids_por_codigo[codigo] = int(resultado.inserted_primary_key[0])
+    linhas_clientes = [
+        {
+            "nome": str(linha["nome_cliente"]),
+            "segmento": str(linha["segmento"]),
+            "lote_id": lote_id,
+            "codigo_cliente": str(linha["codigo_cliente"]),
+            "nome_cliente": str(linha["nome_cliente"]),
+            "consultor": str(linha["consultor"]),
+            "nivel_cliente": str(linha["nivel_cliente"]),
+            "faturamento_anual": float(linha["faturamento_anual"]),
+            "cidade": str(linha["cidade"]) or None,
+            "uf": str(linha["uf"]) or None,
+            "data_contratacao": _data(linha["data_contratacao"]),
+            "mes_contratacao": str(linha["mes_contratacao"]),
+        }
+        for _, linha in df_clientes.iterrows()
+    ]
 
-        for _, linha in df_clientes.iterrows():
-            cliente_id = ids_por_codigo[str(linha["codigo_cliente"])]
-            for servico in linha["servicos_contratados"]:
-                conn.execute(
-                    contrato.insert().values(
-                        cliente_id=cliente_id,
-                        lote_id=lote_id,
-                        servicos_contratados=servico,
-                        data_contratacao=_data(linha["data_contratacao"]),
-                    )
-                )
+    with engine.begin() as conn:
+        # Inserção em lote (poucas idas ao banco em vez de uma por linha).
+        ids_por_codigo: dict[str, int] = {}
+        if linhas_clientes:
+            resultado = conn.execute(
+                cliente.insert().returning(
+                    cliente.c.id, cliente.c.codigo_cliente, sort_by_parameter_order=True
+                ),
+                linhas_clientes,
+            )
+            ids_por_codigo = {codigo: int(id_) for id_, codigo in resultado}
+
+        linhas_contratos = [
+            {
+                "cliente_id": ids_por_codigo[str(linha["codigo_cliente"])],
+                "lote_id": lote_id,
+                "servicos_contratados": servico,
+                "data_contratacao": _data(linha["data_contratacao"]),
+            }
+            for _, linha in df_clientes.iterrows()
+            for servico in linha["servicos_contratados"]
+        ]
+        if linhas_contratos:
+            conn.execute(contrato.insert(), linhas_contratos)
 
         conn.execute(
             estatistica_lote.insert().values(

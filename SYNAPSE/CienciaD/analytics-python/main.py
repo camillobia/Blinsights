@@ -32,9 +32,6 @@ def processar_lote(
     except Exception as erro:
         marcar_erro(banco, lote_id, str(erro))
         raise
-    finally:
-        if engine is None:
-            banco.dispose()
 
 
 def main() -> None:
