@@ -172,6 +172,12 @@
         :style="navStyle('admin')"
       >
         Usuários
+        <span
+          v-if="pendentes > 0"
+          class="ml-auto rounded-full px-2 py-0.5 text-xs font-bold"
+          style="background:#F59E0B;color:#0E1B30"
+          :aria-label="`${pendentes} cadastros pendentes`"
+        >{{ pendentes }}</span>
       </button>
     </nav>
 
@@ -231,10 +237,11 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from '../assets/logo.png'
 import { useAuthStore } from '../store/Authstore'
+import { adminService } from '../services/api'
 
 const props = defineProps({
   open: {
@@ -288,10 +295,25 @@ function sair() {
   router.push('/login')
 }
 
+const pendentes = ref(0)
+
+async function contarPendentes() {
+  if (!auth.ehAdmin) return
+  try {
+    pendentes.value = (await adminService.listar('PENDENTE')).length
+  } catch {
+    pendentes.value = 0
+  }
+}
+
+// Atualiza o contador sempre que o menu é aberto.
+watch(() => props.open, (aberto) => { if (aberto) contarPendentes() })
+
 function navStyle(target) {
   const active =
     props.page === target ||
-    (target === 'relatorio' && route.path === '/sidebar/relatorio')
+    (target === 'relatorio' && route.path === '/sidebar/relatorio') ||
+    (target === 'admin' && route.path.startsWith('/admin'))
 
   return {
     background: active ? 'rgba(62,160,131,0.15)' : 'transparent',
@@ -308,6 +330,7 @@ function handleEscape(event) {
 
 onMounted(() => {
   document.addEventListener('keydown', handleEscape)
+  contarPendentes()
 })
 
 onBeforeUnmount(() => {

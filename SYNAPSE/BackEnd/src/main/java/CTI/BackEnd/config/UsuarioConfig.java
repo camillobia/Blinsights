@@ -18,8 +18,8 @@ public class UsuarioConfig {
     ApplicationRunner criarAdministradorInicial(
             UsuarioRepository usuarioRepository,
             PasswordEncoder passwordEncoder,
-            @Value("${ADMIN_EMAIL:admin@blinsights.local}") String email,
-            @Value("${ADMIN_PASSWORD:Admin@12345}") String senha
+            @Value("${ADMIN_EMAIL:admin@senai.com}") String email,
+            @Value("${ADMIN_PASSWORD:admin123}") String senha
     ) {
         return args -> usuarioRepository.findByEmailIgnoreCase(email)
                 .map(admin -> {

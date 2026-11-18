@@ -5,7 +5,8 @@ const api = axios.create({
   timeout: 60000
 })
 
-let pegarToken = () => localStorage.getItem('authToken')
+// Substituído pela store de login (configurarApi) assim que o app inicia.
+let pegarToken = () => null
 let aoExpirar = () => {}
 
 export function configurarApi({ getToken, onUnauthorized }) {
@@ -13,9 +14,14 @@ export function configurarApi({ getToken, onUnauthorized }) {
   aoExpirar = onUnauthorized
 }
 
+function rotaPublica(url = '') {
+  return url.includes('/auth/login') || url.includes('/auth/register')
+}
+
 api.interceptors.request.use((config) => {
   const token = pegarToken()
-  if (token) {
+  // Login e cadastro nunca levam token: um token velho/expirado faria o Spring recusar com 401.
+  if (token && !rotaPublica(config.url)) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
@@ -24,9 +30,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (resposta) => resposta,
   (erro) => {
-    const url = erro.config?.url || ''
-    const publica = url.includes('/auth/login') || url.includes('/auth/register')
-    if (erro.response?.status === 401 && !publica) {
+    if (erro.response?.status === 401 && !rotaPublica(erro.config?.url)) {
       aoExpirar()
     }
     return Promise.reject(erro)
@@ -51,7 +55,9 @@ export const authService = {
 
 export const adminService = {
   listar: (status) => api.get('/admin/usuarios', { params: status ? { status } : {} }).then(corpo),
-  alterarStatus: (id, status) => api.patch(`/admin/usuarios/${id}/status`, null, { params: { status } }).then(corpo)
+  alterarStatus: (id, status) => api.patch(`/admin/usuarios/${id}/status`, null, { params: { status } }).then(corpo),
+  alterarPerfil: (id, perfil) => api.patch(`/admin/usuarios/${id}/perfil`, null, { params: { perfil } }).then(corpo),
+  excluir: (id) => api.delete(`/admin/usuarios/${id}`).then(corpo)
 }
 
 export default api

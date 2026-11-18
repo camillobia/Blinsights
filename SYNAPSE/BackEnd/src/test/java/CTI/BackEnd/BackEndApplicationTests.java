@@ -57,7 +57,7 @@ class BackEndApplicationTests {
 	void meReturnsLoggedUserAndAdminRoutesNeedAdmin() throws Exception {
 		String login = mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
 						.contentType("application/json")
-						.content("{\"email\":\"admin@blinsights.local\",\"senha\":\"Admin@12345\"}"))
+						.content("{\"email\":\"admin@senai.com\",\"senha\":\"admin123\"}"))
 				.andExpect(MockMvcResultMatchers.status().isOk())
 				.andReturn().getResponse().getContentAsString();
 		String tokenAdmin = login.replaceAll(".*\"token\":\"([^\"]+)\".*", "$1");
@@ -76,6 +76,66 @@ class BackEndApplicationTests {
 						.header("Authorization", "Bearer " + tokenDe("comum@example.com", "USER")))
 				.andExpect(MockMvcResultMatchers.status().isForbidden())
 				.andExpect(MockMvcResultMatchers.jsonPath("$.erro").exists());
+	}
+
+	@Test
+	void cadastroPendenteAprovacaoEPromocao() throws Exception {
+		String tokenAdmin = loginToken("admin@senai.com", "admin123");
+
+		String criado = mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/register")
+						.contentType("application/json")
+						.content("{\"nome\":\"Novo\",\"email\":\"novo@example.com\",\"senha\":\"segredo1\"}"))
+				.andExpect(MockMvcResultMatchers.status().isCreated())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.status").value("PENDENTE"))
+				.andReturn().getResponse().getContentAsString();
+		String id = criado.replaceAll(".*\"id\":(\\d+).*", "$1");
+
+		// Pendente não entra.
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"novo@example.com\",\"senha\":\"segredo1\"}"))
+				.andExpect(MockMvcResultMatchers.status().isUnauthorized());
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/admin/usuarios/" + id + "/status")
+						.param("status", "APROVADO")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andExpect(MockMvcResultMatchers.status().isOk());
+
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/admin/usuarios/" + id + "/perfil")
+						.param("perfil", "ADMIN")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.perfil").value("ADMIN"));
+
+		// Aprovado entra, já como ADMIN.
+		mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"novo@example.com\",\"senha\":\"segredo1\"}"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.perfil").value("ADMIN"));
+
+		// O admin não pode se bloquear nem se rebaixar.
+		String meuId = mockMvc.perform(MockMvcRequestBuilders.get("/api/auth/me")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andReturn().getResponse().getContentAsString().replaceAll(".*\"id\":(\\d+).*", "$1");
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/admin/usuarios/" + meuId + "/status")
+						.param("status", "BLOQUEADO")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andExpect(MockMvcResultMatchers.status().isForbidden())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.erro").exists());
+		mockMvc.perform(MockMvcRequestBuilders.patch("/api/admin/usuarios/" + meuId + "/perfil")
+						.param("perfil", "USER")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andExpect(MockMvcResultMatchers.status().isForbidden());
+	}
+
+	private String loginToken(String email, String senha) throws Exception {
+		String resposta = mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"" + email + "\",\"senha\":\"" + senha + "\"}"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andReturn().getResponse().getContentAsString();
+		return resposta.replaceAll(".*\"token\":\"([^\"]+)\".*", "$1");
 	}
 
 	private String tokenDe(String email, String scope) {
