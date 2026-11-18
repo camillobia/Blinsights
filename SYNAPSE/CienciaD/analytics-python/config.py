@@ -12,6 +12,8 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "postgres")
 DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "postgres")
+# Neon e Azure exigem SSL ("require"); para um PostgreSQL local use "disable" ou "prefer".
+DB_SSLMODE = os.getenv("DB_SSLMODE", "require")
 
 
 def get_database_url():
@@ -22,5 +24,5 @@ def get_database_url():
         host=DB_HOST,
         port=int(DB_PORT),
         database=DB_NAME,
-        query={"sslmode": "require"},
+        query={"sslmode": DB_SSLMODE},
     )
