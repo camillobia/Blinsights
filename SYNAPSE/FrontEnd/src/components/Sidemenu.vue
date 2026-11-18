@@ -142,6 +142,37 @@
 
         Dashboard
       </button>
+
+      <button
+        @click="goRelatorio"
+        class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-left w-full transition-all"
+        :style="navStyle('relatorio')"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          class="w-4 h-4 shrink-0"
+        >
+          <path
+            d="M9 12h6M9 16h6M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+
+        Relatório
+      </button>
+
+      <button
+        v-if="auth.ehAdmin"
+        @click="goAdmin"
+        class="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-left w-full transition-all"
+        :style="navStyle('admin')"
+      >
+        Usuários
+      </button>
     </nav>
 
     <div
@@ -175,7 +206,7 @@
       </div>
 
       <button
-        @click="goHome"
+        @click="sair"
         class="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium"
         style="color: #E33838; background: rgba(227,56,56,0.07)"
       >
@@ -201,8 +232,9 @@
 
 <script setup>
 import { onBeforeUnmount, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import logo from '../assets/logo.png'
+import { useAuthStore } from '../store/Authstore'
 
 const props = defineProps({
   open: {
@@ -218,6 +250,8 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
 
 function closeMenu() {
   emit('close')
@@ -238,8 +272,26 @@ function goDashboard() {
   router.push('/sidebar/dashboard')
 }
 
+function goRelatorio() {
+  closeMenu()
+  router.push('/sidebar/relatorio')
+}
+
+function goAdmin() {
+  closeMenu()
+  router.push('/admin/usuarios')
+}
+
+function sair() {
+  auth.sair()
+  closeMenu()
+  router.push('/login')
+}
+
 function navStyle(target) {
-  const active = props.page === target
+  const active =
+    props.page === target ||
+    (target === 'relatorio' && route.path === '/sidebar/relatorio')
 
   return {
     background: active ? 'rgba(62,160,131,0.15)' : 'transparent',

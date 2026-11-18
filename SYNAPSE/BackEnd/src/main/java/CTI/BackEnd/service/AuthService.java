@@ -23,7 +23,9 @@ public class AuthService {
                         usuario.getId(),
                         usuario.getNome(),
                         usuario.getEmail(),
-                        tokenService.emitir(usuario)
+                        tokenService.emitir(usuario),
+                        usuario.getPerfil() == null ? "USER" : usuario.getPerfil().name(),
+                        usuario.getStatus() == null ? "APROVADO" : usuario.getStatus().name()
                 ));
     }
 }

@@ -1,7 +1,10 @@
 package CTI.BackEnd.service;
 
 import CTI.BackEnd.model.Usuario;
+import CTI.BackEnd.model.PerfilUsuario;
+import CTI.BackEnd.model.StatusUsuario;
 import CTI.BackEnd.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,9 +14,11 @@ import java.util.Optional;
 public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository) {
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<Usuario> listarTodos() {
@@ -25,6 +30,18 @@ public class UsuarioService {
     }
 
     public Usuario salvar(Usuario usuario) {
+        usuario.setPerfil(usuario.getPerfil() == null ? PerfilUsuario.USER : usuario.getPerfil());
+        usuario.setStatus(usuario.getStatus() == null ? StatusUsuario.PENDENTE : usuario.getStatus());
+        return usuarioRepository.save(usuario);
+    }
+
+    public Usuario cadastrar(Usuario usuario) {
+        if (usuarioRepository.findByEmailIgnoreCase(usuario.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("Já existe uma conta com este e-mail.");
+        }
+        usuario.setSenha(passwordEncoder.encode(usuario.getSenha()));
+        usuario.setPerfil(PerfilUsuario.USER);
+        usuario.setStatus(StatusUsuario.PENDENTE);
         return usuarioRepository.save(usuario);
     }
 
@@ -34,7 +51,16 @@ public class UsuarioService {
         }
 
         return usuarioRepository.findByEmailIgnoreCase(email.trim())
-                .filter(usuario -> senha.equals(usuario.getSenha()));
+                .filter(usuario -> usuario.getStatus() == null
+                        || usuario.getStatus() == StatusUsuario.APROVADO)
+                .filter(usuario -> {
+                    if (senha.equals(usuario.getSenha())) {
+                        usuario.setSenha(passwordEncoder.encode(senha));
+                        usuarioRepository.save(usuario);
+                        return true;
+                    }
+                    return passwordEncoder.matches(senha, usuario.getSenha());
+                });
     }
 
     public void deletar(Long id) {

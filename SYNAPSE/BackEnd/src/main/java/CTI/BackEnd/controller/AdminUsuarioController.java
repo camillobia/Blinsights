@@ -2,6 +2,7 @@ package CTI.BackEnd.controller;
 
 import CTI.BackEnd.dto.UsuarioDto;
 import CTI.BackEnd.model.Usuario;
+import CTI.BackEnd.model.StatusUsuario;
 import CTI.BackEnd.service.UsuarioService;
 
 import org.springframework.http.ResponseEntity;
@@ -10,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/usuarios")
+@RequestMapping({"/usuarios", "/api/admin/usuarios"})
 public class AdminUsuarioController {
 
     private final UsuarioService usuarioService;
@@ -20,8 +21,18 @@ public class AdminUsuarioController {
     }
 
     @GetMapping
-    public List<Usuario> listarTodos() {
-        return usuarioService.listarTodos();
+    public List<Usuario> listarTodos(@RequestParam(required = false) String status) {
+        if (status == null || status.isBlank()) {
+            return usuarioService.listarTodos();
+        }
+        try {
+            StatusUsuario statusUsuario = StatusUsuario.valueOf(status.toUpperCase());
+            return usuarioService.listarTodos().stream()
+                    .filter(usuario -> usuario.getStatus() == statusUsuario)
+                    .toList();
+        } catch (IllegalArgumentException ex) {
+            return List.of();
+        }
     }
 
     @GetMapping("/{id}")
@@ -68,5 +79,31 @@ public class AdminUsuarioController {
         usuarioService.deletar(id);
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/status/{status}")
+    public List<Usuario> listarPorStatus(@PathVariable String status) {
+        StatusUsuario statusUsuario = StatusUsuario.valueOf(status.toUpperCase());
+        return usuarioService.listarTodos().stream()
+                .filter(usuario -> usuario.getStatus() == statusUsuario)
+                .toList();
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<Usuario> alterarStatus(
+            @PathVariable Long id,
+            @RequestParam String status
+    ) {
+        try {
+            StatusUsuario novoStatus = StatusUsuario.valueOf(status.toUpperCase());
+            return usuarioService.buscarPorId(id)
+                    .map(usuario -> {
+                        usuario.setStatus(novoStatus);
+                        return ResponseEntity.ok(usuarioService.salvar(usuario));
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

@@ -458,6 +458,12 @@
               </div>
 
             </div>
+            <p class="text-center text-sm mt-5" style="color:#94A3B8">
+              Ainda não possui conta?
+              <button type="button" class="font-bold" style="color:#3EA083" @click="router.push('/cadastro')">
+                Cadastre-se
+              </button>
+            </p>
 
             <p
               v-if="errorMessage"
@@ -536,6 +542,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import logo from '../assets/logo.png'
+import { useAuthStore } from '../store/Authstore'
 
 const router = useRouter()
 
@@ -545,6 +552,7 @@ const errorMessage = ref('')
 const showPass = ref(false)
 const loading = ref(false)
 const focused = ref(null)
+const auth = useAuthStore()
 
 const stats = [
   { v: '98%', l: 'satisfação' },
@@ -561,33 +569,7 @@ async function handleLogin() {
   loading.value = true
 
   try {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/usuarios/login`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email.value.trim(),
-          senha: password.value
-        })
-      }
-    )
-
-    if (response.status === 401) {
-      errorMessage.value = 'E-mail ou senha inválidos.'
-      return
-    }
-
-    if (!response.ok) {
-      throw new Error(`Falha na autenticação: ${response.status}`)
-    }
-
-    const usuario = await response.json()
-    if (!usuario.token) {
-      throw new Error('O servidor não retornou o token de autenticação.')
-    }
-
-    localStorage.setItem('authToken', usuario.token)
+    await auth.entrar(email.value.trim(), password.value)
     await router.push('/sidebar/upload')
   } catch {
     errorMessage.value = 'Não foi possível validar o login. Verifique a conexão e tente novamente.'

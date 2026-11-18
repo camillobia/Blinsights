@@ -5,6 +5,8 @@ public class UsuarioDto {
     private String nome;
     private String email;
     private String senha;
+    private String matricula;
+    private String turma;
 
     public UsuarioDto() {
     }
@@ -37,5 +39,21 @@ public class UsuarioDto {
 
     public void setSenha(String senha) {
         this.senha = senha;
+    }
+
+    public String getMatricula() {
+        return matricula;
+    }
+
+    public void setMatricula(String matricula) {
+        this.matricula = matricula;
+    }
+
+    public String getTurma() {
+        return turma;
+    }
+
+    public void setTurma(String turma) {
+        this.turma = turma;
     }
 }

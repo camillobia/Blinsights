@@ -28,6 +28,11 @@ public class TokenService {
                 .expiresAt(agora.plus(12, ChronoUnit.HOURS))
                 .subject(usuario.getEmail())
                 .claim("userId", usuario.getId())
+                .claim("perfil", usuario.getPerfil() == null ? "USER" : usuario.getPerfil().name())
+                .claim("status", usuario.getStatus() == null ? "APROVADO" : usuario.getStatus().name())
+                .claim("scope", usuario.getPerfil() == null
+                        ? "USER"
+                        : usuario.getPerfil().name())
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
