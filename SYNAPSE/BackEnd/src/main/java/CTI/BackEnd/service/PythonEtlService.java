@@ -20,8 +20,36 @@ public class PythonEtlService {
             @Value("${ETL_URL:http://localhost:8000}") String etlUrl,
             @Value("${ETL_API_KEY:}") String apiKey
     ) {
-        this.restClient = RestClient.create(etlUrl);
-        this.apiKey = apiKey;
+        this.restClient = RestClient.create(normalizarUrl(etlUrl));
+        this.apiKey = apiKey == null ? "" : apiKey.trim();
+    }
+
+    /**
+     * Tolera erros comuns ao configurar ETL_URL no painel da nuvem:
+     * espaços/aspas em volta, barra no final e falta de "https://".
+     */
+    static String normalizarUrl(String etlUrl) {
+        String url = etlUrl == null ? "" : etlUrl.trim().replaceAll("^[\"']+|[\"']+$", "").trim();
+        if (url.isEmpty()) {
+            url = "http://localhost:8000";
+        }
+        if (!url.matches("(?i)^https?://.*")) {
+            url = "https://" + url;
+        }
+        url = url.replaceAll("/+$", "");
+        if (url.endsWith("/etl")) {
+            url = url.substring(0, url.length() - "/etl".length());
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            if (uri.getHost() == null) {
+                throw new IllegalArgumentException("sem host");
+            }
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException(
+                    "ETL_URL inválida: '" + etlUrl + "'. Use algo como https://seu-etl.onrender.com", ex);
+        }
+        return url;
     }
 
     public Map<String, Object> processar(
