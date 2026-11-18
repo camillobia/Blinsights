@@ -15,7 +15,8 @@ const routes = [
   { path: '/sidebar/upload', name: 'Upload', component: Upload },
   { path: '/dashboard', redirect: '/sidebar/dashboard' },
   { path: '/sidebar/dashboard', name: 'Dashboard', component: Dashboard },
-  { path: '/sidebar/relatorio', name: 'Relatorio', component: RelatorioView }
+  { path: '/sidebar/relatorio', name: 'Relatorio', component: RelatorioView },
+  { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
 const router = createRouter({

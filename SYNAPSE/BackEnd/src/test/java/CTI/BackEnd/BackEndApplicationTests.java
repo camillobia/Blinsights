@@ -21,8 +21,6 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 		"spring.datasource.url=jdbc:h2:mem:backEndTests;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
 		"spring.datasource.username=sa",
 		"spring.datasource.password=",
-		"spring.jpa.hibernate.ddl-auto=create-drop",
-		"spring.sql.init.mode=always",
 		"JWT_SECRET=test-only-secret-with-at-least-32-characters"
 })
 @AutoConfigureMockMvc
@@ -39,6 +37,58 @@ class BackEndApplicationTests {
 
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void healthIsPublic() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/health"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.status").value("ok"));
+	}
+
+	@Test
+	void unauthorizedReturnsJsonError() throws Exception {
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/auth/me"))
+				.andExpect(MockMvcResultMatchers.status().isUnauthorized())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.erro").exists());
+	}
+
+	@Test
+	void meReturnsLoggedUserAndAdminRoutesNeedAdmin() throws Exception {
+		String login = mockMvc.perform(MockMvcRequestBuilders.post("/api/auth/login")
+						.contentType("application/json")
+						.content("{\"email\":\"admin@blinsights.local\",\"senha\":\"Admin@12345\"}"))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andReturn().getResponse().getContentAsString();
+		String tokenAdmin = login.replaceAll(".*\"token\":\"([^\"]+)\".*", "$1");
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/auth/me")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andExpect(MockMvcResultMatchers.status().isOk())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.perfil").value("ADMIN"))
+				.andExpect(MockMvcResultMatchers.jsonPath("$.senha").doesNotExist());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/usuarios")
+						.header("Authorization", "Bearer " + tokenAdmin))
+				.andExpect(MockMvcResultMatchers.status().isOk());
+
+		mockMvc.perform(MockMvcRequestBuilders.get("/api/admin/usuarios")
+						.header("Authorization", "Bearer " + tokenDe("comum@example.com", "USER")))
+				.andExpect(MockMvcResultMatchers.status().isForbidden())
+				.andExpect(MockMvcResultMatchers.jsonPath("$.erro").exists());
+	}
+
+	private String tokenDe(String email, String scope) {
+		Instant agora = Instant.now();
+		JwtClaimsSet claims = JwtClaimsSet.builder()
+				.issuer("blinsights")
+				.subject(email)
+				.issuedAt(agora)
+				.expiresAt(agora.plus(5, ChronoUnit.MINUTES))
+				.claim("scope", scope)
+				.build();
+		return jwtEncoder.encode(JwtEncoderParameters.from(
+				JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
 	}
 
 	@Test

@@ -1,7 +1,12 @@
 package CTI.BackEnd.config;
 
+import java.io.IOException;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
+
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -33,14 +38,32 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/usuarios/login", "/api/auth/login", "/api/auth/register", "/error").permitAll()
-                        .requestMatchers("/api/admin/**", "/usuarios").hasAuthority("SCOPE_ADMIN")
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/health", "/error").permitAll()
+                        .requestMatchers("/api/admin/**").hasAuthority("SCOPE_ADMIN")
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint((req, res, ex) ->
+                                escreverErro(res, 401, "Faça login para continuar."))
+                )
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((req, res, ex) ->
+                                escreverErro(res, 401, "Faça login para continuar."))
+                        .accessDeniedHandler((req, res, ex) ->
+                                escreverErro(res, 403, "Você não tem permissão para isso."))
+                );
 
         return http.build();
+    }
+
+    private static void escreverErro(HttpServletResponse res, int status, String mensagem) throws IOException {
+        res.setStatus(status);
+        res.setContentType("application/json;charset=UTF-8");
+        res.getWriter().write("{\"erro\":\"" + mensagem + "\"}");
     }
 
     @Bean
@@ -76,14 +99,16 @@ public class SecurityConfig {
             List<String> allowedOrigins
     ) {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedOrigins(allowedOrigins.stream().map(String::trim).toList());
         configuration.setAllowedHeaders(List.of(
                 "Content-Type",
+                "Accept",
                 "Authorization",
                 "X-File-Name",
                 "X-Total-Linhas"
         ));
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

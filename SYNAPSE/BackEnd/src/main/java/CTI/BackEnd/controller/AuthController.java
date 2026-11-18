@@ -9,10 +9,12 @@ import CTI.BackEnd.service.UsuarioService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping({"/usuarios", "/api/auth"})
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -44,5 +46,13 @@ public class AuthController {
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
+    }
+
+    /** Dados do usuário dono do token (usado pelo front para recarregar a sessão). */
+    @GetMapping("/me")
+    public ResponseEntity<Usuario> me(@AuthenticationPrincipal Jwt jwt) {
+        return usuarioService.buscarPorEmail(jwt.getSubject())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 }

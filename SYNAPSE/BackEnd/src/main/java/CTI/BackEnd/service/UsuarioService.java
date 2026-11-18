@@ -29,6 +29,13 @@ public class UsuarioService {
         return usuarioRepository.findById(id);
     }
 
+    public Optional<Usuario> buscarPorEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return Optional.empty();
+        }
+        return usuarioRepository.findByEmailIgnoreCase(email.trim());
+    }
+
     public Usuario salvar(Usuario usuario) {
         usuario.setPerfil(usuario.getPerfil() == null ? PerfilUsuario.USER : usuario.getPerfil());
         usuario.setStatus(usuario.getStatus() == null ? StatusUsuario.PENDENTE : usuario.getStatus());

@@ -447,7 +447,7 @@ export const useUploadstore = defineStore('upload', {
         }))
 
         const resposta = await api.post(
-          '/api/clientes/validar',
+          '/clientes/validar',
           clientes,
           {
             headers: {
