@@ -571,8 +571,15 @@ async function handleLogin() {
   try {
     await auth.entrar(email.value.trim(), password.value)
     await router.push('/sidebar/upload')
-  } catch {
-    errorMessage.value = 'Não foi possível validar o login. Verifique a conexão e tente novamente.'
+  } catch (erro) {
+    const status = erro?.response?.status
+    if (status === 401) {
+      errorMessage.value = 'E-mail ou senha incorretos, ou a conta ainda não foi aprovada por um administrador.'
+    } else if (!erro?.response) {
+      errorMessage.value = 'Não foi possível falar com o servidor. Verifique se o backend está no ar.'
+    } else {
+      errorMessage.value = `Erro ${status} no servidor. Tente novamente em instantes.`
+    }
   } finally {
     loading.value = false
   }

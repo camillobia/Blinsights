@@ -64,6 +64,10 @@ ALTER TABLE usuario ADD COLUMN IF NOT EXISTS matricula VARCHAR(30);
 ALTER TABLE usuario ADD COLUMN IF NOT EXISTS turma VARCHAR(60);
 ALTER TABLE usuario ADD COLUMN IF NOT EXISTS perfil VARCHAR(20);
 ALTER TABLE usuario ADD COLUMN IF NOT EXISTS status VARCHAR(20);
+-- Contas antigas (anteriores ao controle de perfil/status) já entravam no sistema:
+-- mantêm o acesso como USER aprovado.
+UPDATE usuario SET perfil = 'USER' WHERE perfil IS NULL;
+UPDATE usuario SET status = 'APROVADO' WHERE status IS NULL;
 
 ALTER TABLE cliente ADD COLUMN IF NOT EXISTS lote_id BIGINT REFERENCES upload_lote(id);
 ALTER TABLE cliente ADD COLUMN IF NOT EXISTS codigo_cliente VARCHAR(50);

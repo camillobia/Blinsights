@@ -108,6 +108,7 @@ import { useRouter } from 'vue-router'
 import InnerShell from '../components/InnerShell.vue'
 import BaseChart from '../components/BaseChart.vue'
 import { dashboardService } from '../services/api'
+import { useAuthStore } from '../store/Authstore'
 
 const lotes = ref([])
 const router = useRouter()
@@ -122,8 +123,10 @@ const moeda = (valor) => Number(valor || 0).toLocaleString('pt-BR', {
   currency: 'BRL'
 })
 
+const auth = useAuthStore()
+
 function sair() {
-  localStorage.removeItem('authToken')
+  auth.sair()
   router.push('/login')
 }
 

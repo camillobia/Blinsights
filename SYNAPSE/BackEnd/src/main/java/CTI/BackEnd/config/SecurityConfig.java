@@ -95,12 +95,13 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}")
+            @Value("${CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}")
             List<String> allowedOrigins
     ) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedOrigins(allowedOrigins.stream().map(String::trim).toList());
+        // Padrões aceitam "*" na porta (ex.: http://localhost:*), útil quando o Vite sobe em 5174, 5175...
+        configuration.setAllowedOriginPatterns(allowedOrigins.stream().map(String::trim).toList());
         configuration.setAllowedHeaders(List.of(
                 "Content-Type",
                 "Accept",

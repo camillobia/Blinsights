@@ -50,8 +50,9 @@
               background: userMenuOpen ? '#0F6E56' : '#E2E8F0',
               color: userMenuOpen ? '#fff' : '#0E1B30'
             }"
+            aria-label="Menu do usuário"
           >
-            B
+            {{ inicial }}
           </button>
 
           <!-- Modal do usuário -->
@@ -69,10 +70,10 @@
           >
             <div class="px-4 py-3" style="border-bottom:1px solid #E2E8F0">
               <p class="text-sm font-semibold" style="color:#0E1B30">
-                Usuário
+                {{ auth.usuario?.nome || 'Usuário' }}
               </p>
               <p class="text-xs mt-1" style="color:#94A3B8">
-                beatriz@synapse.com
+                {{ auth.usuario?.email || '' }}
               </p>
             </div>
 
@@ -114,6 +115,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import logo from '../assets/logo.png'
 import SideMenu from './Sidemenu.vue'
+import { useAuthStore } from '../store/Authstore'
 
 const router = useRouter()
 const route = useRoute()
@@ -137,8 +139,12 @@ function goHome() {
   router.push('/')
 }
 
+const auth = useAuthStore()
+const inicial = computed(() => (auth.usuario?.nome || 'U').trim().charAt(0).toUpperCase())
+
 function logout() {
   userMenuOpen.value = false
-  router.push('/')
+  auth.sair()
+  router.push('/login')
 }
 </script>
